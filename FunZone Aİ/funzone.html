@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFO AI-FunZone</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(45deg, #d32f2f, #000000);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            margin: 0;
+            transition: background 0.5s ease;
+        }
+        h1 {
+            font-size: 36px;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .start-btn {
+            font-size: 20px;
+            padding: 15px 30px;
+            color: white;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .start-btn:hover {
+            background-color: #45a049;
+        }
+        .chat-container {
+            width: 500px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+            display: none;
+            transition: opacity 0.5s;
+        }
+        .chat-box {
+            height: 350px;
+            overflow-y: scroll;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            padding: 10px;
+        }
+        .user-msg, .bot-msg {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .user-msg {
+            background-color: #dcf8c6;
+            text-align: right;
+        }
+        .bot-msg {
+            background-color: #f1f0f0;
+        }
+        input[type="text"] {
+            width: calc(100% - 30px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .send-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .send-btn:hover {
+            background-color: #45a049;
+        }
+        .afk-btn {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .afk-btn:hover {
+            background-color: #d32f2f;
+        }
+        .afk-mode {
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            opacity: 0.8;
+            z-index: 10;
+            filter: blur(5px);
+        }
+        .afk-mode h2 {
+            font-size: 30px;
+        }
+        .close-afk {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 30px;
+            color: white;
+            cursor: pointer;
+        }
+        .exit-btn {
+            padding: 10px 20px;
+            font-size: 20px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+        .exit-btn:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>WiFO AI-FunZone</h1>
+    <button class="start-btn" onclick="startFunZone()">Başlat</button>
+
+    <div class="chat-container" id="chat-container">
+        <div class="chat-box" id="chat-box"></div>
+        <input type="text" id="user-input" placeholder="Bir şeyler yazın..." onkeydown="if(event.key === 'Enter'){sendMessage()}">
+        <button class="send-btn" onclick="sendMessage()">Gönder</button>
+        <button class="afk-btn" onclick="toggleAFK()">AFK</button>
+        <button class="exit-btn" onclick="exitChat()">Çıkış</button>
+    </div>
+
+    <div id="afk-mode" class="afk-mode" style="display: none;">
+        <h2>AFK</h2>
+        <span class="close-afk" onclick="toggleAFK()">X</span>
+    </div>
+
+    <script>
+        let userName = '';
+        let userMood = '';
+        let userFavorites = {};
+        let isAFK = false;
+        let isWaitingForResponse = false;
+        let timer;
+        let waitingTimer;
+
+        function startFunZone() {
+            document.querySelector('h1').style.display = 'none';
+            document.querySelector('.start-btn').style.display = 'none';
+            document.getElementById('chat-container').style.display = 'block';
+            document.querySelector('.exit-btn').style.display = 'inline-block';  // Çıkış butonunu göster
+        }
+
+        function toggleAFK() {
+            isAFK = !isAFK;
+            if (isAFK) {
+                // AFK moduna geçildiğinde
+                document.getElementById('chat-container').style.display = 'none';
+                document.getElementById('afk-mode').style.display = 'flex';
+                document.body.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                document.body.style.filter = 'blur(3px)';
+            } else {
+                // AFK modundan çıkıldığında
+                document.getElementById('chat-container').style.display = 'block';
+                document.getElementById('afk-mode').style.display = 'none';
+                document.body.style.backgroundColor = '#6a11cb'; // Arka plan rengini değiştirebiliriz
+                document.body.style.filter = 'none';
+            }
+        }
+
+        function exitChat() {
+            window.location.reload();
+        }
+
+        function typeMessage(element, message, speed = 50) {
+            let i = 0;
+            function typingEffect() {
+                if (i < message.length) {
+                    element.innerHTML += message.charAt(i);
+                    i++;
+                    setTimeout(typingEffect, speed);
+                }
+            }
+            typingEffect();
+        }
+
+        function timeBasedResponse() {
+            const hour = new Date().getHours();
+            if (hour >= 6 && hour < 12) {
+                return "Günaydın! Bugün harika bir gün olacak!";
+            } else if (hour >= 12 && hour < 18) {
+                return "İyi öğleden sonralar! Neler yapıyorsunuz?";
+            } else {
+                return "İyi akşamlar! Geceyi rahat geçirmeniz dileğiyle.";
+            }
+        }
+
+        function tellAJoke() {
+            const jokes = [
+                "Matematik kitabı neden üzgündü? Çünkü çok problemi vardı!",
+                "Neden bilgisayarlar hiç şaka yapmaz? Çünkü her zaman çok ciddiler!",
+                "Bir şişe su neden kırılır? Çünkü içindeki hava basınç yapar!",
+                "Neden köpekler asla bilgisayar kullanamaz? Çünkü fareyi hep yerler!",
+                "Karpuz neden bilgisayarımı sevmez? Çünkü çok suyu var!",
+            ];
+            return jokes[Math.floor(Math.random() * jokes.length)];
+        }
+
+        function moodBasedResponse(mood) {
+            if (mood === 'kötü') {
+                return "Üzgün olduğunun farkındayım, bir şaka yapayım: " + tellAJoke();
+            } else if (mood === 'iyi') {
+                return "Harika! Neşeli olmana sevindim!";
+            } else {
+                return "Biraz daha açıklama yapar mısın? Ne ruh halindesin?";
+            }
+        }
+
+        function generateResponse(userInput) {
+            const responses = {
+                "merhaba": "Merhaba! Size nasıl yardımcı olabilirim?",
+                "günaydın": timeBasedResponse(),
+                "nasılsın": "İyiyim, teşekkür ederim! Sen nasılsın?",
+                "teşekkürler": "Rica ederim!",
+                "şaka": tellAJoke(),
+                "hoşça kal": "Hoşça kal! Görüşürüz! 😊",
+                "film öner": "Sana önerim: 'Inception'. Bilim kurgu severler için mükemmel bir yapım!",
+                "müzik öner": "Bugün 'Blinding Lights'ı dinleyebilirsin. Harika bir şarkı!",
+                "filmim": "Favori filmin kaydedildi!",
+                "ne yapıyorsun?": "Şu an size yardımcı oluyorum! Siz ne yapıyorsunuz?",
+                "sa": "Selamünaleyküm!",
+                "as": "Aleyküm selam!",
+                "hb": "Hoş bulduk!",
+                "eyv": "Eyvallah!",
+                "lol": "Gülmek, iyi bir şey!",
+                "brb": "Birazdan geliyorum!",
+                "afk": "Away from keyboard.",
+                "evet": "Harika, devam edelim!",
+                "hayır": "Anlaşıldı, AFK moduna geçiyorum.",
+                "afk moduna alır mısın?": "AFK moduna alınıyorsunuz. Lütfen bekleyin...",
+            };
+
+            const normalizedInput = userInput.toLowerCase().trim();
+
+            if (normalizedInput.includes('adım') || normalizedInput.includes('benim adım')) {
+                userName = userInput.split('adım ')[1] || userInput.split('benim adım ')[1];
+                return `Merhaba ${userName}! Tanıştığımıza memnun oldum!`;
+            }
+
+            if (normalizedInput.includes('ruh halim') || normalizedInput.includes('ruh halim kötü')) {
+                userMood = 'kötü';
+                return moodBasedResponse(userMood);
+            }
+
+            if (normalizedInput.includes('ruh halim iyi')) {
+                userMood = 'iyi';
+                return moodBasedResponse(userMood);
+            }
+
+            if (responses[normalizedInput]) {
+                return responses[normalizedInput];
+            } else {
+                return "Üzgünüm, bu konuda bir yanıtım yok. Başka bir şey deneyin!";
+            }
+        }
+
+        function sendMessage() {
+            const userInput = document.getElementById('user-input').value;
+            if (userInput.trim() === "") {
+                alert("Lütfen geçerli bir mesaj girin!");
+                return;
+            }
+
+            const chatBox = document.getElementById('chat-box');
+            const userMsg = document.createElement('div');
+            userMsg.classList.add('user-msg');
+            userMsg.textContent = userInput;
+            chatBox.appendChild(userMsg);
+
+            const botResponse = generateResponse(userInput);
+            const botMsg = document.createElement('div');
+            botMsg.classList.add('bot-msg');
+            chatBox.appendChild(botMsg);
+
+            // Yazıyı yavaşça ekleyelim
+            typeMessage(botMsg, botResponse, 100);
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            document.getElementById('user-input').value = '';
+
+            // 4 dakika (240 saniye) bekleyelim, sonra bot "Orda mısın?" diye sorsun
+            if (waitingTimer) {
+                clearTimeout(waitingTimer);
+            }
+
+            waitingTimer = setTimeout(() => {
+                const waitingMsg = document.createElement('div');
+                waitingMsg.classList.add('bot-msg');
+                waitingMsg.textContent = "Orda mısın?";
+                chatBox.appendChild(waitingMsg);
+
+                setTimeout(() => {
+                    if (document.getElementById('user-input').value.trim().toLowerCase() === 'evet') {
+                        const continueMsg = document.createElement('div');
+                        continueMsg.classList.add('bot-msg');
+                        continueMsg.textContent = "Harika, devam edelim!";
+                        chatBox.appendChild(continueMsg);
+
+                        // Timer'ı durdur
+                        clearTimeout(waitingTimer);
+                    } else if (document.getElementById('user-input').value.trim().toLowerCase() === 'hayır') {
+                        toggleAFK();  // Hayır derse AFK moduna al
+                    }
+                }, 10000); // 10 saniye bekleme süresi
+            }, 240000); // 4 dakika bekleme süresi
+        }
+    </script>
+
+</body>
+</html>
